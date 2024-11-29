@@ -1,21 +1,18 @@
 {
-  "name": "@apollo/datasource-rest",
+  "name": "@victorinox-com/gateway-datasource-rest",
   "description": "REST DataSource for Apollo Server v4",
-  "version": "6.3.0",
-  "author": "Apollo <packages@apollographql.com>",
+  "version": "0.0.1",
+  "author": "Victorinox AG",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/apollographql/datasource-rest"
+    "url": "https://github.com/victorinox-com/gateway-datasource-rest"
   },
-  "homepage": "https://github.com/apollographql/datasource-rest#readme",
-  "bugs": {
-    "url": "https://github.com/apollographql/datasource-rest/issues"
-  },
+  "homepage": "https://github.com/victorinox-com/gateway-datasource-rest#readme",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "engines": {
-    "node": ">=16.14"
+    "node": ">=18.20.2"
   },
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
