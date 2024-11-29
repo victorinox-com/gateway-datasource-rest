@@ -2,8 +2,8 @@
   "name": "@victorinox-com/gateway-datasource-rest",
   "description": "REST DataSource for Apollo Server v4",
   "version": "0.0.1",
-  "author": "Victorinox AG",
   "license": "MIT",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/victorinox-com/gateway-datasource-rest"
@@ -12,7 +12,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "engines": {
-    "node": ">=18.20.2"
+    "node": ">=16.14"
   },
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
@@ -24,7 +24,8 @@
     "test": "jest",
     "test:ci": "jest --coverage --ci --maxWorkers=2 --reporters=default --reporters=jest-junit",
     "watch": "tsc --build --watch",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:ci": "npm run lint && npm run prettier-check && npm run spell-check",
     "changeset-add": "changeset add",
     "changeset-publish": "changeset publish",
     "changeset-check": "changeset status --verbose --since=origin/main"
@@ -64,9 +65,5 @@
   },
   "peerDependencies": {
     "graphql": "^16.5.0"
-  },
-  "volta": {
-    "node": "20.18.1",
-    "npm": "10.9.1"
   }
 }
