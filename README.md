@@ -15,10 +15,10 @@ View the [Apollo Server documentation for RESTDataSource](https://www.apollograp
 
 ## Usage
 
-To get started, install the `@apollo/datasource-rest` package:
+To get started, install the `@victorinox-com/gateway-datasource-rest` package:
 
 ```bash
-npm install @apollo/datasource-rest
+npm install @victorinox-com/gateway-datasource-rest
 ```
 
 To define a data source, extend the [`RESTDataSource`](https://github.com/apollographql/datasource-rest/tree/main/src/RESTDataSource.ts) class and implement the data fetching methods that your resolvers require.  Data sources can then be provided via Apollo Server's `context` object during execution.
@@ -26,7 +26,7 @@ To define a data source, extend the [`RESTDataSource`](https://github.com/apollo
 Your implementation of these methods can call convenience methods built into the [`RESTDataSource`](https://github.com/apollographql/datasource-rest/tree/main/src/RESTDataSource.ts) class to perform HTTP requests, while making it easy to build up query parameters, parse JSON results, and handle errors.
 
 ```javascript
-const { RESTDataSource } = require('@apollo/datasource-rest');
+const { RESTDataSource } = require('@victorinox-com/gateway-datasource-rest');
 
 class MoviesAPI extends RESTDataSource {
   override baseURL = 'https://movies-api.example.com/';
@@ -318,7 +318,7 @@ class PersonalizationAPI extends RESTDataSource {
 
 If you're using TypeScript, you can use the `AugmentedRequest` type to define the `willSendRequest` signature:
 ```ts
-import { RESTDataSource, AugmentedRequest } from '@apollo/datasource-rest';
+import { RESTDataSource, AugmentedRequest } from '@victorinox-com/gateway-datasource-rest';
 
 class PersonalizationAPI extends RESTDataSource {
   override baseURL = 'https://personalization-api.example.com/';
