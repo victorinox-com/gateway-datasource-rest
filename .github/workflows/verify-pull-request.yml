@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Changesets 📝
-        if: ${{ !startsWith(github.head_ref, 'feat/21721-ci') && !startsWith(github.head_ref, 'changeset-release') && !startsWith(github.head_ref, 'renovate') }}
+        if: ${{ !startsWith(github.head_ref, 'changeset-release') && !startsWith(github.head_ref, 'renovate') }}
         run: npm run changeset-check
 
       - name: Lint 🤔
