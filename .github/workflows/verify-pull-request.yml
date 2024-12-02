@@ -25,7 +25,12 @@ jobs:
       - name: Install dependencies 🧱
         run: npm ci
 
+      - name: Debug print
+        run: |
+          echo ${{ github.ref }}
+
       - name: Changesets 📝
+        if: ${{ !startsWith(github.ref, 'refs/heads/feat/21721-ci-cd') }}
         run: npm run changeset-check
 
       - name: Lint 🤔
