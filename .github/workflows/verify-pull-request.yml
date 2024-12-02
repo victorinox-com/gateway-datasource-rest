@@ -27,10 +27,10 @@ jobs:
 
       - name: Debug print
         run: |
-          echo ${{ github.ref }}
+          echo ${{ github.head_ref }}
 
       - name: Changesets 📝
-        if: ${{ !startsWith(github.ref, 'refs/heads/feat/21721-ci-cd') }}
+        if: ${{ !startsWith(github.head_ref, 'feat/21721-ci-cd') }}
         run: npm run changeset-check
 
       - name: Lint 🤔
