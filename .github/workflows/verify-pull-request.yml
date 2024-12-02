@@ -2,6 +2,8 @@ name: Verify Pull Request
 
 on: pull_request
 
+# if: ${{ !startsWith(github.ref, 'refs/heads/changeset-release/') && !startsWith(github.ref, 'refs/heads/renovate/') }}
+
 jobs:
   verify_pull_request:
     name: Verify Pull Request
@@ -19,6 +21,10 @@ jobs:
 
       - name: Install dependencies 🧱
         run: npm ci
+
+      - name: Changesets 📝
+        if: ${{ !startsWith(github.ref, 'refs/heads/feat/21721-ci-cd') && !startsWith(github.ref, 'refs/heads/renovate/') }}
+        run: npm run changeset-check
 
       - name: Lint 🤔
         run: npm run lint:ci
