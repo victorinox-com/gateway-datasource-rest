@@ -2,4 +2,4 @@
 '@victorinox-com/gateway-datasource-rest': minor
 ---
 
-Add CI pipeline
+Add CI/CD pipelines

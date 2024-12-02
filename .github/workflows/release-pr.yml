@@ -1,12 +1,16 @@
 name: Release
 
-# Temp
 on: pull_request
-#
+
 #on:
 #  push:
 #    branches:
 #      - main
+
+permissions:
+  packages: write
+  contents: write
+  pull-requests: write
 
 jobs:
   release:
