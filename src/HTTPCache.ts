@@ -8,7 +8,6 @@ import type { Options as HttpCacheSemanticsOptions } from 'http-cache-semantics'
 import type { Fetcher, FetcherResponse } from '@apollo/utils.fetcher';
 import {
   type KeyValueCache,
-  InMemoryLRUCache,
   PrefixingKeyValueCache,
 } from '@apollo/utils.keyvaluecache';
 import type {
@@ -16,6 +15,7 @@ import type {
   RequestOptions,
   ValueOrPromise,
 } from './RESTDataSource';
+import { NoopKeyValueCache } from './NoopKeyValueCache';
 
 // We want to use a couple internal properties of CachePolicy. (We could get
 // `_url` and `_status` off of the serialized CachePolicyObject, but `age()` is
@@ -38,7 +38,7 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
   private httpFetch: Fetcher;
 
   constructor(
-    keyValueCache: KeyValueCache = new InMemoryLRUCache<string, CO>(),
+    keyValueCache: KeyValueCache = new NoopKeyValueCache<string, CO>(),
     httpFetch: Fetcher = nodeFetch,
   ) {
     this.keyValueCache = new PrefixingKeyValueCache(
