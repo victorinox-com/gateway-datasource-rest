@@ -425,7 +425,7 @@ describe('HTTPCache', () => {
 
     expect(storeSet).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(String),
+      expect.any(Object),
       { ttl: 30 },
     );
     storeSet.mockRestore();
@@ -441,7 +441,7 @@ describe('HTTPCache', () => {
 
     expect(storeSet).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(String),
+      expect.any(Object),
       { ttl: 60 },
     );
 
@@ -468,7 +468,7 @@ describe('HTTPCache', () => {
 
     expect(storeSet).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(String),
+      expect.any(Object),
       { ttl: 20, tags: ['foo', 'bar'] },
     );
 

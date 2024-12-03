@@ -10,6 +10,7 @@ import { GraphQLError } from 'graphql';
 import type { Options as HttpCacheSemanticsOptions } from 'http-cache-semantics';
 import cloneDeep from 'lodash.clonedeep';
 import isPlainObject from 'lodash.isplainobject';
+import type { CacheItem } from './HTTPCache';
 import { HTTPCache } from './HTTPCache';
 
 export type ValueOrPromise<T> = T | Promise<T>;
@@ -140,8 +141,11 @@ export interface CacheOptions {
 
 const NODE_ENV = process.env.NODE_ENV;
 
-export interface DataSourceConfig {
-  cache?: KeyValueCache;
+export interface DataSourceConfig<
+  V extends CacheItem = CacheItem,
+  CO extends CacheOptions = CacheOptions,
+> {
+  cache?: KeyValueCache<V, CO>;
   fetch?: Fetcher;
   logger?: Logger;
 }
