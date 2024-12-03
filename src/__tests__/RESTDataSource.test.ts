@@ -15,7 +15,7 @@ import { nockAfterEach, nockBeforeEach } from './nockAssertions';
 import type { WithRequired } from '@apollo/utils.withrequired';
 import { Headers as NodeFetchHeaders } from 'node-fetch';
 import type { Logger } from '@apollo/utils.logger';
-import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache';
+import { FakeableTTLTestingCache } from './FakeableTTLTestingCache';
 
 const apiUrl = 'https://api.example.com';
 
@@ -1457,7 +1457,7 @@ describe('RESTDataSource', () => {
 
           constructor() {
             super({
-              cache: new InMemoryLRUCache(),
+              cache: new FakeableTTLTestingCache(),
             });
           }
 
@@ -1767,7 +1767,7 @@ describe('RESTDataSource', () => {
 
           constructor() {
             super({
-              cache: new InMemoryLRUCache(),
+              cache: new FakeableTTLTestingCache(),
             });
           }
 
@@ -1807,7 +1807,7 @@ describe('RESTDataSource', () => {
 
             constructor() {
               super({
-                cache: new InMemoryLRUCache(),
+                cache: new FakeableTTLTestingCache(),
               });
             }
 
@@ -1875,7 +1875,7 @@ describe('RESTDataSource', () => {
 
           constructor() {
             super({
-              cache: new InMemoryLRUCache(),
+              cache: new FakeableTTLTestingCache(),
             });
           }
 
@@ -1921,7 +1921,7 @@ describe('RESTDataSource', () => {
 
           constructor() {
             super({
-              cache: new InMemoryLRUCache(),
+              cache: new FakeableTTLTestingCache(),
             });
           }
 
@@ -1989,7 +1989,7 @@ describe('RESTDataSource', () => {
 
             constructor() {
               super({
-                cache: new InMemoryLRUCache(),
+                cache: new FakeableTTLTestingCache(),
               });
             }
 

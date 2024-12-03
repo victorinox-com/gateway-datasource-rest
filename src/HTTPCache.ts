@@ -33,12 +33,21 @@ interface ResponseWithCacheWritePromise {
   cacheWritePromise?: Promise<void>;
 }
 
+export interface CacheItem<T = object | string> {
+  policy: CachePolicy.CachePolicyObject;
+  ttlOverride?: number;
+  body: T;
+}
+
 export class HTTPCache<CO extends CacheOptions = CacheOptions> {
-  private keyValueCache: KeyValueCache<string, CO>;
+  private keyValueCache: KeyValueCache<CacheItem, CO>;
   private httpFetch: Fetcher;
 
   constructor(
-    keyValueCache: KeyValueCache = new NoopKeyValueCache<string, CO>(),
+    keyValueCache: KeyValueCache<CacheItem, CO> = new NoopKeyValueCache<
+      CacheItem,
+      CO
+    >(),
     httpFetch: Fetcher = nodeFetch,
   ) {
     this.keyValueCache = new PrefixingKeyValueCache(
@@ -104,7 +113,7 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       );
     }
 
-    const { policy: policyRaw, ttlOverride, body } = JSON.parse(entry);
+    const { policy: policyRaw, ttlOverride, body } = entry;
 
     const policy = CachePolicy.fromObject(policyRaw) as SneakyCachePolicy;
     // Remove url from the policy, because otherwise it would never match a
@@ -125,8 +134,10 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       // the cache entry was not created with an explicit TTL override and the
       // header-based cache policy says we can safely use the cached response.
       const headers = policy.responseHeaders();
+      const serializedBody = prepareResponseBody(body);
+
       return {
-        response: new NodeFetchResponse(body, {
+        response: new NodeFetchResponse(serializedBody, {
           url: urlFromPolicy,
           status: policy._status,
           headers: cachePolicyHeadersToNodeFetchHeadersInit(headers),
@@ -169,7 +180,9 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       return this.storeResponseAndReturnClone(
         urlString,
         new NodeFetchResponse(
-          modified ? await revalidationResponse.text() : body,
+          modified
+            ? await revalidationResponse.text()
+            : prepareResponseBody(body),
           {
             url: revalidatedPolicy._url,
             status: revalidatedPolicy._status,
@@ -273,12 +286,12 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
     ttlOverride: number | undefined;
     cacheKey: string;
   }): Promise<void> {
-    const body = await response.text();
-    const entry = JSON.stringify({
+    const body = await parseBody(response);
+    const entry: CacheItem = {
       policy: policy.toObject(),
       ttlOverride,
       body,
-    });
+    };
 
     // Set the value into the cache, and forward all the set cache option into the setter function
     await this.keyValueCache.set(cacheKey, entry, {
@@ -378,4 +391,28 @@ function cachePolicyHeadersToFetcherHeadersInit(
     }
   }
   return headerRecord;
+}
+
+function prepareResponseBody(body: object | string): string {
+  return typeof body === 'string' ? body : JSON.stringify(body);
+}
+
+function parseBody(response: FetcherResponse): Promise<object | string> {
+  const contentType = response.headers.get('Content-Type');
+  const contentLength = response.headers.get('Content-Length');
+
+  if (
+    // As one might expect, a "204 No Content" is empty! This means there
+    // isn't enough to `JSON.parse`, and trying will result in an error.
+    response.status !== 204 &&
+    contentLength !== '0' &&
+    contentType &&
+    (contentType.startsWith('application/json') ||
+      contentType.endsWith('+json') ||
+      contentType.includes('json'))
+  ) {
+    return response.json();
+  } else {
+    return response.text();
+  }
 }
