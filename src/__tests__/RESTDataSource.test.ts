@@ -15,6 +15,7 @@ import { nockAfterEach, nockBeforeEach } from './nockAssertions';
 import type { WithRequired } from '@apollo/utils.withrequired';
 import { Headers as NodeFetchHeaders } from 'node-fetch';
 import type { Logger } from '@apollo/utils.logger';
+import { FakeableTTLTestingCache } from './FakeableTTLTestingCache';
 
 const apiUrl = 'https://api.example.com';
 
@@ -1453,6 +1454,13 @@ describe('RESTDataSource', () => {
       it('allows specifying a custom cache key via cacheKey used for HTTP-header-sensitive cache', async () => {
         const dataSource = new (class extends RESTDataSource {
           override baseURL = 'https://api.example.com';
+
+          constructor() {
+            super({
+              cache: new FakeableTTLTestingCache(),
+            });
+          }
+
           protected override requestDeduplicationPolicyFor() {
             return { policy: 'do-not-deduplicate' } as const;
           }
@@ -1756,6 +1764,13 @@ describe('RESTDataSource', () => {
       it('allows setting cache options for each request', async () => {
         const dataSource = new (class extends RESTDataSource {
           override baseURL = 'https://api.example.com';
+
+          constructor() {
+            super({
+              cache: new FakeableTTLTestingCache(),
+            });
+          }
+
           protected override requestDeduplicationPolicyFor() {
             return { policy: 'do-not-deduplicate' } as const;
           }
@@ -1789,6 +1804,12 @@ describe('RESTDataSource', () => {
         const dataSource =
           new (class extends RESTDataSource<CustomCacheOptions> {
             override baseURL = 'https://api.example.com';
+
+            constructor() {
+              super({
+                cache: new FakeableTTLTestingCache(),
+              });
+            }
 
             getFoo(id: number) {
               return this.fetch(`foo/${id}`, {
@@ -1852,6 +1873,12 @@ describe('RESTDataSource', () => {
         const dataSource = new (class extends RESTDataSource {
           override baseURL = 'https://api.example.com';
 
+          constructor() {
+            super({
+              cache: new FakeableTTLTestingCache(),
+            });
+          }
+
           getFoo(id: number, shared: boolean) {
             return this.fetch(`foo/${id}`, {
               httpCacheSemanticsCachePolicyOptions: { shared },
@@ -1891,6 +1918,12 @@ describe('RESTDataSource', () => {
 
         const dataSource = new (class extends RESTDataSource {
           override baseURL = apiUrl;
+
+          constructor() {
+            super({
+              cache: new FakeableTTLTestingCache(),
+            });
+          }
 
           getFoo(id: number) {
             return this.fetch(`foo/${id}`, {
@@ -1953,6 +1986,12 @@ describe('RESTDataSource', () => {
         it('for a cacheable but not de-duped request', async () => {
           const dataSource = new (class extends RESTDataSource {
             override baseURL = 'https://api.example.com';
+
+            constructor() {
+              super({
+                cache: new FakeableTTLTestingCache(),
+              });
+            }
 
             postFoo() {
               return this.fetch('foo', {

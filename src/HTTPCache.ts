@@ -8,7 +8,6 @@ import type { Options as HttpCacheSemanticsOptions } from 'http-cache-semantics'
 import type { Fetcher, FetcherResponse } from '@apollo/utils.fetcher';
 import {
   type KeyValueCache,
-  InMemoryLRUCache,
   PrefixingKeyValueCache,
 } from '@apollo/utils.keyvaluecache';
 import type {
@@ -16,6 +15,8 @@ import type {
   RequestOptions,
   ValueOrPromise,
 } from './RESTDataSource';
+import { NoopKeyValueCache } from './NoopKeyValueCache';
+import { parseResponseBody } from './utils';
 
 // We want to use a couple internal properties of CachePolicy. (We could get
 // `_url` and `_status` off of the serialized CachePolicyObject, but `age()` is
@@ -29,23 +30,32 @@ interface SneakyCachePolicy extends CachePolicy {
 
 interface ResponseWithCacheWritePromise {
   response: FetcherResponse;
+  parsedBody: object | string;
   responseFromCache?: Boolean;
   cacheWritePromise?: Promise<void>;
 }
 
+export interface CacheItem<T = object | string> {
+  policy: CachePolicy.CachePolicyObject;
+  ttlOverride?: number;
+  body: T;
+}
+
 export class HTTPCache<CO extends CacheOptions = CacheOptions> {
-  private keyValueCache: KeyValueCache<string, CO>;
-  private httpFetch: Fetcher;
+  private keyValueCache: KeyValueCache<CacheItem, CO>;
 
   constructor(
-    keyValueCache: KeyValueCache = new InMemoryLRUCache<string, CO>(),
-    httpFetch: Fetcher = nodeFetch,
+    keyValueCache: KeyValueCache<CacheItem, CO> = new NoopKeyValueCache<
+      CacheItem,
+      CO
+    >(),
+    private httpFetch: Fetcher = nodeFetch,
+    private parseBody = parseResponseBody,
   ) {
     this.keyValueCache = new PrefixingKeyValueCache(
       keyValueCache,
       'httpcache:',
     );
-    this.httpFetch = httpFetch;
   }
 
   async fetch(
@@ -76,6 +86,7 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       return {
         response: await this.httpFetch(urlString, requestOpts),
         responseFromCache: false,
+        parsedBody: '',
       };
     }
 
@@ -94,9 +105,12 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
         cache?.httpCacheSemanticsCachePolicyOptions,
       ) as SneakyCachePolicy;
 
+      const parsedBody = await this.parseBody(response);
+
       return this.storeResponseAndReturnClone(
         urlString,
         response,
+        parsedBody,
         requestOpts,
         policy,
         cacheKey,
@@ -104,7 +118,7 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       );
     }
 
-    const { policy: policyRaw, ttlOverride, body } = JSON.parse(entry);
+    const { policy: policyRaw, ttlOverride, body } = entry;
 
     const policy = CachePolicy.fromObject(policyRaw) as SneakyCachePolicy;
     // Remove url from the policy, because otherwise it would never match a
@@ -125,13 +139,15 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       // the cache entry was not created with an explicit TTL override and the
       // header-based cache policy says we can safely use the cached response.
       const headers = policy.responseHeaders();
+
       return {
-        response: new NodeFetchResponse(body, {
+        response: new NodeFetchResponse('', {
           url: urlFromPolicy,
           status: policy._status,
           headers: cachePolicyHeadersToNodeFetchHeadersInit(headers),
         }),
         responseFromCache: true,
+        parsedBody: body,
       };
     } else {
       // We aren't sure that we're allowed to use the cached response, so we are
@@ -166,18 +182,20 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
         policyResponseFrom(revalidationResponse),
       ) as unknown as { policy: SneakyCachePolicy; modified: boolean };
 
+      const parsedBody = modified
+        ? await this.parseBody(revalidationResponse)
+        : body;
+
       return this.storeResponseAndReturnClone(
         urlString,
-        new NodeFetchResponse(
-          modified ? await revalidationResponse.text() : body,
-          {
-            url: revalidatedPolicy._url,
-            status: revalidatedPolicy._status,
-            headers: cachePolicyHeadersToNodeFetchHeadersInit(
-              revalidatedPolicy.responseHeaders(),
-            ),
-          },
-        ),
+        new NodeFetchResponse('', {
+          url: revalidatedPolicy._url,
+          status: revalidatedPolicy._status,
+          headers: cachePolicyHeadersToNodeFetchHeadersInit(
+            revalidatedPolicy.responseHeaders(),
+          ),
+        }),
+        parsedBody,
         requestOpts,
         revalidatedPolicy,
         cacheKey,
@@ -189,6 +207,7 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
   private async storeResponseAndReturnClone(
     url: string,
     response: FetcherResponse,
+    parsedBody: object | string,
     request: RequestOptions<CO>,
     policy: SneakyCachePolicy,
     cacheKey: string,
@@ -212,14 +231,14 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       // Without an override, we only cache GET requests and respect standard HTTP cache semantics
       !(request.method === 'GET' && policy.storable())
     ) {
-      return { response };
+      return { response, parsedBody };
     }
 
     let ttl =
       ttlOverride === undefined
         ? Math.round(policy.timeToLive() / 1000)
         : ttlOverride;
-    if (ttl <= 0) return { response };
+    if (ttl <= 0) return { response, parsedBody };
 
     // If a response can be revalidated, we don't want to remove it from the
     // cache right after it expires. (See the comment above the call to
@@ -229,26 +248,11 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
       ttl *= 2;
     }
 
-    // Clone the response and return it. In the background, read the original
-    // response and write it to the cache. The caller is responsible for
-    // `await`ing or `catch`ing `cacheWritePromise`. (By default, RESTDataSource
-    // `catch`es it with `console.log`.)
-    //
-    // When you clone a response, you're generally expected (at least by
-    // node-fetch: https://github.com/node-fetch/node-fetch/issues/151) to read
-    // both bodies in parallel; if you only read one of them and ignore the
-    // other, the one you're reading might start blocking once the second one's
-    // buffer fills. We don't think this is a real problem here: we do
-    // immediately read from the one we're writing to the cache, and if the
-    // caller doesn't bother to read its response, the only real downside is
-    // that we won't ever write to the cache, which seems maybe OK for an
-    // "ignored" body. (It could perhaps lead to a memory leak, but the answer
-    // there is to make sure your parseBody override does consume the response.)
-    const returnedResponse = response.clone();
     return {
-      response: returnedResponse,
-      cacheWritePromise: this.readResponseAndWriteToCache({
-        response,
+      response,
+      parsedBody,
+      cacheWritePromise: this.writeToCache({
+        parsedBody,
         policy,
         cacheOptions,
         ttl,
@@ -258,27 +262,26 @@ export class HTTPCache<CO extends CacheOptions = CacheOptions> {
     };
   }
 
-  private async readResponseAndWriteToCache({
-    response,
+  private async writeToCache({
+    parsedBody,
     policy,
     cacheOptions,
     ttl,
     ttlOverride,
     cacheKey,
   }: {
-    response: FetcherResponse;
+    parsedBody: object | string;
     policy: CachePolicy;
     cacheOptions?: CO;
     ttl: number | null | undefined;
     ttlOverride: number | undefined;
     cacheKey: string;
   }): Promise<void> {
-    const body = await response.text();
-    const entry = JSON.stringify({
+    const entry: CacheItem = {
       policy: policy.toObject(),
       ttlOverride,
-      body,
-    });
+      body: parsedBody,
+    };
 
     // Set the value into the cache, and forward all the set cache option into the setter function
     await this.keyValueCache.set(cacheKey, entry, {

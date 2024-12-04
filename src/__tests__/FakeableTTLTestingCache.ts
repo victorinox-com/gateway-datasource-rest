@@ -7,11 +7,17 @@
 // time calculation in this mock cache as well.
 //
 // (Borrowed from apollo-server.)
-export class FakeableTTLTestingCache {
+import type { CacheItem } from '../HTTPCache';
+import type { KeyValueCache } from '@apollo/utils.keyvaluecache';
+import type { CacheOptions } from '../RESTDataSource';
+
+export class FakeableTTLTestingCache
+  implements KeyValueCache<CacheItem, CacheOptions>
+{
   constructor(
     private cache: Map<
       string,
-      { value: string; deadline: number | null }
+      { value: CacheItem; deadline: number | null }
     > = new Map(),
   ) {}
 
@@ -27,12 +33,12 @@ export class FakeableTTLTestingCache {
 
   async set(
     key: string,
-    value: string,
-    { ttl }: { ttl: number | null } = { ttl: null },
+    value: CacheItem,
+    options: CacheOptions = { ttl: undefined },
   ) {
     this.cache.set(key, {
       value,
-      deadline: ttl ? Date.now() + ttl * 1000 : null,
+      deadline: options.ttl ? Date.now() + options.ttl * 1000 : null,
     });
   }
 

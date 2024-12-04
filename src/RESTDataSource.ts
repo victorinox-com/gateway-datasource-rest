@@ -10,7 +10,9 @@ import { GraphQLError } from 'graphql';
 import type { Options as HttpCacheSemanticsOptions } from 'http-cache-semantics';
 import cloneDeep from 'lodash.clonedeep';
 import isPlainObject from 'lodash.isplainobject';
+import type { CacheItem } from './HTTPCache';
 import { HTTPCache } from './HTTPCache';
+import { parseResponseBody } from './utils';
 
 export type ValueOrPromise<T> = T | Promise<T>;
 
@@ -140,8 +142,11 @@ export interface CacheOptions {
 
 const NODE_ENV = process.env.NODE_ENV;
 
-export interface DataSourceConfig {
-  cache?: KeyValueCache;
+export interface DataSourceConfig<
+  V extends CacheItem = CacheItem,
+  CO extends CacheOptions = CacheOptions,
+> {
+  cache?: KeyValueCache<V, CO>;
   fetch?: Fetcher;
   logger?: Logger;
 }
@@ -198,7 +203,11 @@ export abstract class RESTDataSource<CO extends CacheOptions = CacheOptions> {
   logger: Logger;
 
   constructor(config?: DataSourceConfig) {
-    this.httpCache = new HTTPCache<CO>(config?.cache, config?.fetch);
+    this.httpCache = new HTTPCache<CO>(
+      config?.cache,
+      config?.fetch,
+      this.parseBody,
+    );
     this.logger = config?.logger ?? console;
   }
 
@@ -300,21 +309,7 @@ export abstract class RESTDataSource<CO extends CacheOptions = CacheOptions> {
   // If you override this to return interesting new mutable data types, override
   // cloneParsedBody too.
   protected parseBody(response: FetcherResponse): Promise<object | string> {
-    const contentType = response.headers.get('Content-Type');
-    const contentLength = response.headers.get('Content-Length');
-    if (
-      // As one might expect, a "204 No Content" is empty! This means there
-      // isn't enough to `JSON.parse`, and trying will result in an error.
-      response.status !== 204 &&
-      contentLength !== '0' &&
-      contentType &&
-      (contentType.startsWith('application/json') ||
-        contentType.endsWith('+json'))
-    ) {
-      return response.json();
-    } else {
-      return response.text();
-    }
+    return parseResponseBody(response);
   }
 
   private cloneDataSourceFetchResult<TResult>(
@@ -535,23 +530,19 @@ export abstract class RESTDataSource<CO extends CacheOptions = CacheOptions> {
         const cacheOptions = outgoingRequest.cacheOptions
           ? outgoingRequest.cacheOptions
           : this.cacheOptionsFor?.bind(this);
+
         try {
-          const { response, cacheWritePromise } = await this.httpCache.fetch(
-            url,
-            outgoingRequest,
-            {
+          const { response, cacheWritePromise, parsedBody } =
+            await this.httpCache.fetch(url, outgoingRequest, {
               cacheKey,
               cacheOptions,
               httpCacheSemanticsCachePolicyOptions:
                 outgoingRequest.httpCacheSemanticsCachePolicyOptions,
-            },
-          );
+            });
 
           if (cacheWritePromise) {
             this.catchCacheWritePromiseErrors(cacheWritePromise);
           }
-
-          const parsedBody = await this.parseBody(response);
 
           await this.throwIfResponseIsError({
             url,
